@@ -1,0 +1,76 @@
+services:
+    ntf-api-app:
+        build:
+            args:
+                user: admin
+                uid: 1000
+            context: ./backend
+            dockerfile: docker/Dockerfile
+        container_name: ntf
+        restart: unless-stopped
+        working_dir: /var/www
+        volumes:
+            - ./backend/:/var/www/
+        networks:
+            - ntf-net
+    ntf-pgsql:
+        image: 'postgres:latest'
+        ports:
+            - '${FORWARD_DB_PORT:-5432}:5432'
+        environment:
+            PGPASSWORD: '${DB_PASSWORD:-secret}'
+            POSTGRES_DB: ${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+        volumes:
+         - ntf-pgsql:/var/lib/postgresql/data
+        networks:
+            - ntf-net
+        healthcheck:
+            test:
+                - CMD
+                - pg_isready
+                - '-q'
+                - '-d'
+                - '${DB_DATABASE}'
+                - '-U'
+                - '${DB_USERNAME}'
+            retries: 3
+            timeout: 5s
+
+    ntf-redis:
+        image: 'redis:alpine'
+        ports:
+            - '${FORWARD_REDIS_PORT:-6379}:6379'
+        volumes:
+            - 'ntf-redis:/data'
+        networks:
+            - ntf-net
+        healthcheck:
+            test:
+                - CMD
+                - redis-cli
+                - ping
+            retries: 3
+            timeout: 5s
+   
+    ntf-nginx:
+        image: nginx:1.25.1-alpine-slim
+        container_name: ntf-nginx
+        restart: always
+        ports:
+            - "8000:80"
+        volumes:
+            - ./:/var/www
+            - ./backend/:/var/www
+            - ./backend/docker/nginx:/etc/nginx/conf.d
+        networks:
+            - ntf-net
+networks:
+    ntf-net:
+        driver: bridge
+volumes:
+    ntf-pgsql:
+        driver: local
+    ntf-redis:
+        driver: local
