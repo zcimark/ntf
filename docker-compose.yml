@@ -1,4 +1,19 @@
 services:
+    ntf-frontend:
+        container_name: ntf-frontend
+        build:
+          context: ./frontend
+          dockerfile: Dockerfile
+        ports:
+        - 3000:3000
+        environment:
+        - NEXT_PUBLIC_API_URL=http://localhost:4000
+        restart: always
+        depends_on:
+        - ntf-api-app
+        networks:
+            - ntf-net
+
     ntf-api-app:
         build:
             args:
@@ -6,7 +21,7 @@ services:
                 uid: 1000
             context: ./backend
             dockerfile: docker/Dockerfile
-        container_name: ntf
+        container_name: ntf-api-app
         restart: unless-stopped
         working_dir: /var/www
         volumes:
@@ -19,7 +34,7 @@ services:
             - '${FORWARD_DB_PORT:-5432}:5432'
         environment:
             PGPASSWORD: '${DB_PASSWORD:-secret}'
-            POSTGRES_DB: ${DB_DATABASE}'
+            POSTGRES_DB: '${DB_DATABASE}'
             POSTGRES_USER: '${DB_USERNAME}'
             POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
         volumes:
